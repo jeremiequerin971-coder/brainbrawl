@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>BrainBrawl 🔥</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#060608;--surface:#0e0e16;--card:#16161f;--border:#1e1e2e;
+  --accent:#ff4d6d;--accentB:#ff8500;--neon:#00f5d4;--gold:#ffd166;
+  --text:#eeeeff;--muted:#555570;--correct:#06d6a0;--wrong:#ff4d6d;
+  --solo:#ff8500;--ally:#00b4d8;
+}
+html,body{height:100%;background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);overflow-x:hidden;-webkit-tap-highlight-color:transparent;}
+button{cursor:pointer;font-family:'Syne',sans-serif;transition:transform .1s;}
+button:active{transform:scale(.95);}
+input{font-family:'DM Sans',sans-serif;color:var(--text);}
+input::placeholder{color:#3a3a5a;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pop{0%{transform:scale(.85);opacity:0}60%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes fall{0%{transform:translateY(-10px) rotate(0);opacity:1}100%{transform:translateY(105vh) rotate(540deg);opacity:0}}
+.screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:28px 18px 48px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:22px;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:14px;padding:15px 22px;font-size:15px;font-weight:800;letter-spacing:.5px;font-family:'Syne',sans-serif;}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accentB));color:#fff;box-shadow:0 0 28px #ff4d6d45,0 4px 20px #00000050;}
+.btn-ghost{background:transparent;border:1.5px solid var(--border);color:var(--muted);}
+.btn-neon{background:#00f5d415;border:1.5px solid #00f5d455;color:var(--neon);}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.w100{width:100%;}
+.label{font-size:10px;letter-spacing:4px;color:var(--muted);text-transform:uppercase;margin-bottom:14px;font-family:'Syne',sans-serif;}
+.tag{display:inline-flex;align-items:center;border-radius:99px;padding:3px 10px;font-size:10px;font-weight:700;letter-spacing:1px;font-family:'Syne',sans-serif;text-transform:uppercase;}
+.chip{display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:4px 10px;}
+.noise{position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.025;}
+.progress-bar{height:3px;background:var(--border);width:100%;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accentB));transition:width .5s ease;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+apiKey: “AIzaSyCVwTFE8oyh4fF45xTjEP0zlpeXIXs8Ljw”,
+authDomain: “brawl-9ae85.firebaseapp.com”,
+databaseURL: “https://brawl-9ae85-default-rtdb.europe-west1.firebasedatabase.app”,
+projectId: “brawl-9ae85”,
+storageBucket: “brawl-9ae85.firebasestorage.app”,
+messagingSenderId: “436866257561”,
+appId: “1:436866257561:web:43bfc5bcc4c2ab30b91e08”
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getDatabase(fbApp);
+
+/* ══ BANQUE DE QUESTIONS ══════════════════════════════════════════ */
+const QUESTIONS = [
+{q:“Quelle est la capitale de l’Australie ?”,o:[“Sydney”,“Melbourne”,“Canberra”,“Brisbane”],a:2,d:“easy”,cat:“🌍”},
+{q:“Combien de côtés a un hexagone ?”,o:[“5”,“6”,“7”,“8”],a:1,d:“easy”,cat:“🧠”},
+{q:“Quel pays a la plus grande superficie du monde ?”,o:[“Canada”,“Chine”,“USA”,“Russie”],a:3,d:“easy”,cat:“🌍”},
+{q:“Qui a peint la Joconde ?”,o:[“Michel-Ange”,“Raphaël”,“Léonard de Vinci”,“Botticelli”],a:2,d:“easy”,cat:“🎨”},
+{q:“Quel est le plus grand océan du monde ?”,o:[“Atlantique”,“Indien”,“Pacifique”,“Arctique”],a:2,d:“easy”,cat:“🌍”},
+{q:“En quelle année a eu lieu la Révolution française ?”,o:[“1789”,“1776”,“1804”,“1815”],a:0,d:“easy”,cat:“📚”},
+{q:“Quelle planète est la plus proche du Soleil ?”,o:[“Vénus”,“Mars”,“Mercure”,“Jupiter”],a:2,d:“easy”,cat:“🚀”},
+{q:“Combien de joueurs dans une équipe de football ?”,o:[“10”,“11”,“12”,“9”],a:1,d:“easy”,cat:“⚽”},
+{q:“Quelle est la langue la plus parlée au monde ?”,o:[“Anglais”,“Espagnol”,“Mandarin”,“Hindi”],a:2,d:“easy”,cat:“🌍”},
+{q:“Quel animal est le symbole de la paix ?”,o:[“Colombe”,“Aigle”,“Dauphin”,“Mouton”],a:0,d:“easy”,cat:“🕊️”},
+{q:“Quelle est la plus haute montagne du monde ?”,o:[“K2”,“Everest”,“Mont Blanc”,“Kilimandjaro”],a:1,d:“easy”,cat:“🌍”},
+{q:“Quel pays a inventé la pizza ?”,o:[“France”,“Espagne”,“Italie”,“Grèce”],a:2,d:“easy”,cat:“🍕”},
+{q:“Qui joue Iron Man dans le MCU ?”,o:[“Chris Evans”,“Chris Hemsworth”,“Robert Downey Jr.”,“Mark Ruffalo”],a:2,d:“easy”,cat:“🎬”},
+{q:“Dans quel film voit-on ‘Je suis ton père’ ?”,o:[“Star Trek”,“Star Wars V”,“Star Wars IV”,“Star Wars VI”],a:1,d:“easy”,cat:“🎬”},
+{q:“Qui chante ‘Blinding Lights’ ?”,o:[“Drake”,“Post Malone”,“The Weeknd”,“Travis Scott”],a:2,d:“easy”,cat:“🎵”},
+{q:“Quel groupe a sorti ‘Bohemian Rhapsody’ ?”,o:[“The Beatles”,“Led Zeppelin”,“Queen”,“Rolling Stones”],a:2,d:“easy”,cat:“🎵”},
+{q:“Qui est le plombier de Nintendo ?”,o:[“Luigi”,“Yoshi”,“Mario”,“Wario”],a:2,d:“easy”,cat:“🎮”},
+{q:“Quel studio a créé GTA ?”,o:[“EA Games”,“Ubisoft”,“Rockstar Games”,“Activision”],a:2,d:“easy”,cat:“🎮”},
+{q:“Dans quelle série voit-on Ross et Rachel ?”,o:[“How I Met Your Mother”,“Seinfeld”,“Friends”,“The Office”],a:2,d:“easy”,cat:“📺”},
+{q:“Quel pays a produit ‘Squid Game’ ?”,o:[“Japon”,“Chine”,“Thaïlande”,“Corée du Sud”],a:3,d:“easy”,cat:“📺”},
+{q:“Quelle est la monnaie du Japon ?”,o:[“Won”,“Yuan”,“Yen”,“Baht”],a:2,d:“easy”,cat:“🌍”},
+{q:“Combien de planètes dans le système solaire ?”,o:[“7”,“8”,“9”,“10”],a:1,d:“easy”,cat:“🚀”},
+{q:“Quel est le surnom de l’équipe de France de foot ?”,o:[“Les Bleus”,“Les Tricolores”,“Les Coqs”,“Les Gaulois”],a:0,d:“easy”,cat:“⚽”},
+{q:“Qui chante ‘Thriller’ ?”,o:[“Prince”,“Michael Jackson”,“Madonna”,“Whitney Houston”],a:1,d:“easy”,cat:“🎵”},
+{q:“De quel pays vient le sushi ?”,o:[“Chine”,“Corée”,“Thaïlande”,“Japon”],a:3,d:“easy”,cat:“🍕”},
+{q:“Combien de membres dans les Beatles ?”,o:[“3”,“4”,“5”,“6”],a:1,d:“easy”,cat:“🎵”},
+{q:“Quel pays a organisé la Coupe du Monde 2022 ?”,o:[“Arabie Saoudite”,“EAU”,“Qatar”,“Bahreïn”],a:2,d:“easy”,cat:“⚽”},
+{q:“Qui joue Eleven dans ‘Stranger Things’ ?”,o:[“Sadie Sink”,“Millie Bobby Brown”,“Sophia Lillis”,“Finn Wolfhard”],a:1,d:“easy”,cat:“📺”},
+{q:“Dans quel sport utilise-t-on un volant ?”,o:[“Tennis de table”,“Squash”,“Badminton”,“Padel”],a:2,d:“easy”,cat:“⚽”},
+{q:“Quel est le seul mammifère capable de voler ?”,o:[“Écureuil volant”,“Chauve-souris”,“Colibri”,“Poisson volant”],a:1,d:“easy”,cat:“🦁”},
+{q:“Combien d’os dans le corps humain adulte ?”,o:[“206”,“186”,“226”,“196”],a:0,d:“medium”,cat:“🧠”},
+{q:“Qui a découvert la pénicilline ?”,o:[“Pasteur”,“Fleming”,“Curie”,“Darwin”],a:1,d:“medium”,cat:“🔬”},
+{q:“Quelle est la capitale du Canada ?”,o:[“Toronto”,“Vancouver”,“Ottawa”,“Montréal”],a:2,d:“medium”,cat:“🌍”},
+{q:“Quel élément chimique a pour symbole ‘Au’ ?”,o:[“Argent”,“Aluminium”,“Or”,“Cuivre”],a:2,d:“medium”,cat:“🔬”},
+{q:“En quelle année le mur de Berlin est-il tombé ?”,o:[“1987”,“1989”,“1991”,“1985”],a:1,d:“medium”,cat:“📚”},
+{q:“Qui a écrit ‘Les Misérables’ ?”,o:[“Balzac”,“Zola”,“Hugo”,“Flaubert”],a:2,d:“medium”,cat:“📚”},
+{q:“Quel film a gagné l’Oscar du meilleur film en 2020 ?”,o:[“1917”,“Joker”,“Parasite”,“Le Mans 66”],a:2,d:“medium”,cat:“🎬”},
+{q:“Qui réalise la saga ‘Avengers’ ?”,o:[“Zack Snyder”,“James Cameron”,“Les frères Russo”,“Nolan”],a:2,d:“medium”,cat:“🎬”},
+{q:“Dans quel pays a été tourné ‘Le Seigneur des Anneaux’ ?”,o:[“Écosse”,“Islande”,“Canada”,“Nouvelle-Zélande”],a:3,d:“medium”,cat:“🎬”},
+{q:“Quel rappeur est originaire de Compton ?”,o:[“Jay-Z”,“Eminem”,“Kendrick Lamar”,“Lil Wayne”],a:2,d:“medium”,cat:“🎵”},
+{q:“Combien de km fait un marathon ?”,o:[“40 km”,“42,195 km”,“43 km”,“41,5 km”],a:1,d:“medium”,cat:“⚽”},
+{q:“Quel pays a le plus de Coupes du Monde de foot ?”,o:[“Allemagne”,“Argentine”,“Italie”,“Brésil”],a:3,d:“medium”,cat:“⚽”},
+{q:“Quel jeu a popularisé le genre Battle Royale ?”,o:[“Fortnite”,“PUBG”,“H1Z1”,“DayZ”],a:1,d:“medium”,cat:“🎮”},
+{q:“Dans quel jeu joue-t-on ‘Master Chief’ ?”,o:[“Call of Duty”,“Halo”,“Gears of War”,“Doom”],a:1,d:“medium”,cat:“🎮”},
+{q:“Quel est le personnage mascotte de Sega ?”,o:[“Crash Bandicoot”,“Spyro”,“Sonic”,“Tails”],a:2,d:“medium”,cat:“🎮”},
+{q:“Qui joue Walter White dans ‘Breaking Bad’ ?”,o:[“Bryan Cranston”,“Aaron Paul”,“Bob Odenkirk”,“Dean Norris”],a:0,d:“medium”,cat:“📺”},
+{q:“Combien de saisons compte ‘Stranger Things’ ?”,o:[“3”,“4”,“5”,“6”],a:1,d:“medium”,cat:“📺”},
+{q:“Quel fromage est dans le tiramisu traditionnel ?”,o:[“Ricotta”,“Philadelphia”,“Mascarpone”,“Mozzarella”],a:2,d:“medium”,cat:“🍕”},
+{q:“De quel pays vient la moussaka ?”,o:[“Turquie”,“Liban”,“Grèce”,“Maroc”],a:2,d:“medium”,cat:“🍕”},
+{q:“En quelle année a été créé Instagram ?”,o:[“2008”,“2010”,“2012”,“2009”],a:1,d:“medium”,cat:“🧠”},
+{q:“Une pieuvre a combien de cœurs ?”,o:[“1”,“2”,“3”,“4”],a:2,d:“medium”,cat:“🦁”},
+{q:“En combien de temps la lumière du Soleil atteint la Terre ?”,o:[“2 min”,“8 min”,“15 min”,“1 heure”],a:1,d:“medium”,cat:“🚀”},
+{q:“Quel pays consomme le plus de chocolat par habitant ?”,o:[“Belgique”,“Suisse”,“France”,“Allemagne”],a:1,d:“medium”,cat:“🍕”},
+{q:“Usain Bolt est recordman du monde sur ?”,o:[“100m et 200m”,“100m et 400m”,“200m et 400m”,“50m et 100m”],a:0,d:“medium”,cat:“⚽”},
+{q:“Qui a composé la 5e Symphonie ?”,o:[“Mozart”,“Bach”,“Beethoven”,“Chopin”],a:2,d:“medium”,cat:“🎵”},
+{q:“De quel pays vient le groupe BTS ?”,o:[“Japon”,“Chine”,“Corée du Sud”,“Thaïlande”],a:2,d:“medium”,cat:“🎵”},
+{q:“Quel philosophe a dit ‘Je pense donc je suis’ ?”,o:[“Rousseau”,“Voltaire”,“Descartes”,“Pascal”],a:2,d:“medium”,cat:“🧠”},
+{q:“Quelle est la vitesse de la lumière ?”,o:[“200 000 km/s”,“300 000 km/s”,“150 000 km/s”,“400 000 km/s”],a:1,d:“hard”,cat:“🔬”},
+{q:“Quelle console a le plus vendu dans l’histoire ?”,o:[“PS2”,“Nintendo DS”,“Game Boy”,“PS4”],a:0,d:“hard”,cat:“🎮”},
+{q:“Quelle licence de jeux est la plus vendue de tous les temps ?”,o:[“GTA”,“Tetris”,“Mario”,“Call of Duty”],a:2,d:“hard”,cat:“🎮”},
+{q:“Quel vrai prénom a le Professeur dans ‘La Casa de Papel’ ?”,o:[“Álvaro”,“Sergio”,“Pablo”,“Andrés”],a:1,d:“hard”,cat:“📺”},
+{q:“Quel vrai nom a Jon Snow dans ‘Game of Thrones’ ?”,o:[“Aegon Targaryen”,“Jaehaerys”,“Rhaegar Stark”,“Aemon”],a:0,d:“hard”,cat:“📺”},
+{q:“Quelle est la seule lettre absente du tableau périodique ?”,o:[“Q”,“J”,“X”,“W”],a:1,d:“hard”,cat:“🔬”},
+{q:“Combien de temps un escargot peut dormir d’affilée ?”,o:[“6 mois”,“2 ans”,“3 ans”,“1 an”],a:2,d:“hard”,cat:“🦁”},
+{q:“Combien de langues sont parlées dans le monde ?”,o:[“2000”,“4000”,“7000”,“10000”],a:2,d:“hard”,cat:“🌍”},
+{q:“Quel pays a la plus grande densité de population ?”,o:[“Bangladesh”,“Monaco”,“Singapour”,“Vatican”],a:1,d:“hard”,cat:“🌍”},
+{q:“Quelle NBA a le plus de titres ?”,o:[“LA Lakers”,“Chicago Bulls”,“Golden State”,“Boston Celtics”],a:3,d:“hard”,cat:“⚽”},
+{q:“De quelle fleur vient la vanille ?”,o:[“Rose”,“Orchidée”,“Jasmin”,“Pivoine”],a:1,d:“hard”,cat:“🍕”},
+{q:“Quelle épice est la plus chère au monde ?”,o:[“Vanille”,“Cardamome”,“Safran”,“Poivre de Sichuan”],a:2,d:“hard”,cat:“🍕”},
+{q:“Quel ingrédient est interdit dans un vrai guacamole ?”,o:[“Citron vert”,“Coriandre”,“Tomate”,“Ail”],a:3,d:“hard”,cat:“🍕”},
+];
+
+/* ══ CONSTANTES ═══════════════════════════════════════════════════ */
+const PAL=[
+{m:”#ff4d6d”,bg:”#ff4d6d15”,b:”#ff4d6d40”},
+{m:”#00b4d8”,bg:”#00b4d815”,b:”#00b4d840”},
+{m:”#a855f7”,bg:”#a855f715”,b:”#a855f740”},
+{m:”#06d6a0”,bg:”#06d6a015”,b:”#06d6a040”},
+{m:”#ffd166”,bg:”#ffd16615”,b:”#ffd16640”},
+{m:”#ff8500”,bg:”#ff850015”,b:”#ff850040”},
+];
+const EMO=[“🔥”,“⚡”,“💜”,“🌊”,“👑”,“🎯”];
+const TIMER=20, TOTAL=10, ALROUNDS=[3,6,9];
+const LAYOUTS=[“grid2x2”,“list”,“asymL”,“wide”,“grid2x2”,“list”,“asymR”];
+
+/* ══ UTILS ════════════════════════════════════════════════════════ */
+const shuffle=a=>{const b=[…a];for(let i=b.length-1;i>0;i–){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;};
+const randCode=()=>Math.random().toString(36).substr(2,4).toUpperCase();
+const el=id=>document.getElementById(id);
+const p=i=>PAL[i%PAL.length];
+const layout=seed=>LAYOUTS[seed%LAYOUTS.length];
+
+function pickQ(){
+const e=shuffle(QUESTIONS.filter(q=>q.d===“easy”)).slice(0,3);
+const m=shuffle(QUESTIONS.filter(q=>q.d===“medium”)).slice(0,4);
+const h=shuffle(QUESTIONS.filter(q=>q.d===“hard”)).slice(0,3);
+return […e,…m,…h].map(q=>({q:q.q,options:q.o,answer:q.a,difficulty:q.d,cat:q.cat}));
+}
+
+/* ══ STATE ════════════════════════════════════════════════════════ */
+let S={screen:“lobby”,roomCode:null,playerId:null,playerName:null,playerIdx:null,isHost:false,players:[],questions:[],qIndex:0,soloIdx:null,myAnswer:null,shuffledOpts:[],lay:“grid2x2”,timerVal:TIMER,timerInterval:null,unsubs:[],answers:{}};
+const rRef=(path=””)=>ref(db,`rooms/${S.roomCode}${path?"/"+path:""}`);
+
+/* ══ RENDER ═══════════════════════════════════════════════════════ */
+function render(){
+document.getElementById(“app”).innerHTML=({lobby:rLobby,join:rJoin,waiting:rWaiting,alliance:rAlliance,question:rQuestion,scoreboard:rScore,podium:rPodium}[S.screen]||(() =>””))();
+bind();
+}
+
+const noise=`<svg class="noise"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".65" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><rect width="100%" height="100%" filter="url(#n)"/></svg>`;
+
+function rLobby(){return`${noise}<div class="screen" style="justify-content:flex-start;gap:0;">
+
+  <div style="text-align:center;margin-bottom:30px;animation:fadeUp .5s both;">
+    <div style="font-size:10px;letter-spacing:5px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Quiz · Battle · Alliance</div>
+    <h1 style="font-family:'Syne',sans-serif;font-size:clamp(46px,13vw,64px);font-weight:800;line-height:.9;text-shadow:0 0 50px #ff4d6d35;">BRAIN<br><span style="background:linear-gradient(90deg,var(--accent),var(--accentB));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">BRAWL</span></h1>
+    <div style="margin-top:10px;color:var(--muted);font-size:13px;">2–6 joueurs · Alliances & trahisons</div>
+  </div>
+  <div style="width:100%;max-width:440px;display:flex;flex-direction:column;gap:12px;">
+    <div class="card" style="animation:fadeUp .5s .08s both;">
+      <div class="label">Ton pseudo</div>
+      <input id="hname" maxlength="12" placeholder="Entre ton pseudo..." style="width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:15px;font-weight:700;outline:none;transition:border .2s;"/>
+    </div>
+    <div class="card" style="background:#ff850008;border-color:#ff850020;animation:fadeUp .5s .14s both;">
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <span style="font-size:18px;">⚡</span>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">
+          <span style="color:var(--text);font-weight:700;">Rounds Spéciaux</span> aux Q4, Q7 et Q10 —
+          <span style="color:var(--solo);">Solo ×3</span> vs <span style="color:var(--ally);">Alliance ×1.5</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;animation:fadeUp .5s .2s both;">
+      <button id="bcreate" class="btn btn-primary w100" style="font-size:16px;padding:17px;">⚡ Créer un salon</button>
+      <button id="bjoin" class="btn btn-ghost" style="padding:17px 18px;white-space:nowrap;">Rejoindre</button>
+    </div>
+  </div>
+</div>`;}
+
+function rJoin(){return`${noise}<div class="screen" style="justify-content:center;">
+
+  <div style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px;animation:fadeUp .4s both;">
+    <div style="text-align:center;margin-bottom:4px;">
+      <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;">Rejoindre</div>
+      <div style="color:var(--muted);font-size:13px;margin-top:4px;">Entre le code du salon</div>
+    </div>
+    <div class="card">
+      <div class="label">Pseudo</div>
+      <input id="jname" maxlength="12" placeholder="Ton pseudo..." style="width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:15px;font-weight:700;outline:none;color:var(--text);margin-bottom:16px;"/>
+      <div class="label">Code</div>
+      <input id="jcode" maxlength="4" placeholder="XXXX" style="width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:28px;font-weight:800;outline:none;color:var(--neon);text-align:center;letter-spacing:8px;text-transform:uppercase;font-family:'Syne',sans-serif;"/>
+    </div>
+    <div id="jerr" style="color:var(--wrong);font-size:13px;text-align:center;min-height:16px;"></div>
+    <button id="bjdo" class="btn btn-primary w100" style="font-size:16px;padding:17px;">Rejoindre →</button>
+    <button id="bback" class="btn btn-ghost w100">← Retour</button>
+  </div>
+</div>`;}
+
+function rWaiting(){
+const rows=S.players.map((pl,i)=>` <div style="display:flex;align-items:center;gap:12px;padding:13px 16px;background:${p(i).bg};border:1.5px solid ${p(i).b};border-radius:14px;animation:slideIn .3s ${i*.07}s both;"> <span style="font-size:22px;">${EMO[i%EMO.length]}</span> <span style="font-weight:700;font-size:15px;flex:1;">${pl.name}</span> ${i===0?`<span class="tag" style="background:#ffd16618;border:1px solid #ffd16640;color:var(--gold);">HOST</span>`:`<span style="color:var(--correct);font-size:18px;">✓</span>`} </div>`).join(””);
+return`${noise}<div class="screen" style="justify-content:center;"> <div style="width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px;"> <div style="text-align:center;animation:fadeUp .4s both;"> <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Code du salon</div> <div style="font-family:'Syne',sans-serif;font-size:54px;font-weight:800;color:var(--neon);letter-spacing:10px;text-shadow:0 0 30px #00f5d455;">${S.roomCode}</div> <div style="font-size:12px;color:var(--muted);margin-top:4px;">Partage ce code 👆</div> </div> <div class="card" style="animation:fadeUp .4s .1s both;"> <div class="label">Joueurs (${S.players.length}/6)</div> <div style="display:flex;flex-direction:column;gap:9px;">${rows}</div> </div> ${S.isHost?`<button id=“bstart” class=“btn btn-primary w100” style=“font-size:16px;padding:17px;” ${S.players.length<2?“disabled”:””}>
+${S.players.length<2?“⏳ En attente de joueurs…”:“⚡ Lancer la partie”}</button>`: `<div style="text-align:center;color:var(--muted);font-size:14px;padding:14px;animation:pulse 2s infinite;">En attente du host…</div>`}
+</div>
+
+  </div>`;}
+
+function rAlliance(){
+const rows=S.players.map((pl,i)=>{const s=i===S.soloIdx;return` <div style="display:flex;align-items:center;gap:13px;background:${s?"#ff850015":"#00b4d810"};border:2px solid ${s?"var(--solo)":"var(--ally)"};border-radius:16px;padding:15px 18px;animation:slideIn .35s ${.08+i*.09}s both;"> <span style="font-size:24px;">${EMO[i%EMO.length]}</span> <div style="flex:1;"> <div style="font-weight:700;font-size:15px;">${pl.name}</div> <div style="font-size:12px;color:${s?"var(--solo)":"var(--ally)"};margin-top:2px;">${s?"⚡ SOLO — ×3 si tu gagnes":"🤝 ALLIANCE — ×1.5 si vous votez pareil"}</div> </div> <span class="tag" style="background:${s?"var(--solo)":"var(--ally)"};color:#000;">${s?"SOLO":"ALLIÉ"}</span> </div>`;}).join(””);
+const me=S.playerIdx===S.soloIdx;
+return`${noise}<div style="position:fixed;inset:0;background:radial-gradient(circle at 50% 30%,#ff850012 0%,transparent 65%);pointer-events:none;"></div>
+
+  <div class="screen" style="justify-content:center;">
+    <div style="width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;gap:22px;">
+      <div style="text-align:center;animation:pop .5s both;">
+        <div style="font-size:50px;margin-bottom:10px;">⚡</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;">ROUND SPÉCIAL</h2>
+        <div style="color:var(--muted);font-size:13px;margin-top:4px;">Question ${S.qIndex+1} — Alliances activées</div>
+      </div>
+      <div style="width:100%;display:flex;flex-direction:column;gap:9px;">${rows}</div>
+      <div style="background:${me?"#ff850018":"#00b4d815"};border:1.5px solid ${me?"var(--solo)":"var(--ally)"};border-radius:14px;padding:13px 18px;text-align:center;font-size:14px;">
+        <strong>Toi :</strong> ${me?"Tu joues SEUL — sois le meilleur !":"Votez la même réponse pour le bonus !"}
+      </div>
+      <button id="bgo" class="btn btn-neon" style="padding:15px 44px;">On joue ! →</button>
+    </div>
+  </div>`;}
+
+function rQuestion(){
+const q=S.questions[S.qIndex];
+if(!q) return`<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:var(--muted);">Chargement...</div>`;
+const OC=[”#ff4d6d”,”#00b4d8”,”#a855f7”,”#06d6a0”], LT=[“A”,“B”,“C”,“D”];
+const dc={easy:”#06d6a0”,medium:”#ffd166”,hard:”#ff4d6d”}[q.difficulty]||”#ffd166”;
+const chips=S.players.map((pl,i)=>`<div class="chip" style="background:${p(i).bg};border:1.5px solid ${p(i).b};">
+<span style="font-size:12px;">${EMO[i%EMO.length]}</span>
+<span style="font-size:11px;font-weight:700;">${pl.name}</span>
+<span style="font-size:11px;font-weight:800;color:${p(i).m};">${pl.score.toLocaleString()}</span>
+
+  </div>`).join("");
+  const mkBtn=i=>{
+    const opt=S.shuffledOpts[i]; if(!opt) return"";
+    return`<button class="opt-btn" data-i="${i}" ${S.myAnswer!==null?"disabled":""} style="display:flex;align-items:center;gap:11px;padding:14px 13px;border-radius:15px;border:2px solid var(--border);background:var(--card);text-align:left;width:100%;transition:border-color .15s;">
+      <span style="width:29px;height:29px;border-radius:8px;flex-shrink:0;background:${OC[i]}20;border:1.5px solid ${OC[i]}50;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:12px;font-weight:800;color:${OC[i]};">${LT[i]}</span>
+      <span style="font-size:14px;font-weight:600;color:var(--text);line-height:1.3;">${opt.text}</span>
+    </button>`;};
+  let opts="";
+  const lay=S.lay;
+  if(lay==="grid2x2") opts=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">${[0,1,2,3].map(mkBtn).join("")}</div>`;
+  else if(lay==="list") opts=`<div style="display:flex;flex-direction:column;gap:9px;">${[0,1,2,3].map(mkBtn).join("")}</div>`;
+  else if(lay==="asymL") opts=`<div style="display:flex;flex-direction:column;gap:9px;">${mkBtn(0)}<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">${mkBtn(1)}${mkBtn(2)}</div>${mkBtn(3)}</div>`;
+  else if(lay==="wide") opts=`<div style="display:flex;flex-direction:column;gap:9px;"><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">${mkBtn(0)}${mkBtn(1)}</div>${mkBtn(2)}${mkBtn(3)}</div>`;
+  else if(lay==="asymR") opts=`<div style="display:flex;flex-direction:column;gap:9px;">${mkBtn(0)}<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">${mkBtn(1)}${mkBtn(2)}</div>${mkBtn(3)}</div>`;
+  else opts=`<div style="display:flex;flex-direction:column;gap:9px;">${[0,1,2,3].map(mkBtn).join("")}</div>`;
+  const r=32,ci=2*Math.PI*r,pct=S.timerVal/TIMER,tc=pct>.5?"#06d6a0":pct>.25?"#ffd166":"#ff4d6d";
+  const answered=Object.keys(S.answers||{}).length;
+  return`${noise}<div style="min-height:100vh;display:flex;flex-direction:column;">
+    <div style="padding:11px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:7px;">
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">${chips}</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+        <span class="tag" style="background:${dc}18;border:1px solid ${dc}40;color:${dc};">${q.cat}</span>
+        ${ALROUNDS.includes(S.qIndex)?`<span class="tag" style="background:var(--solo)18;border:1px solid var(--solo)40;color:var(--solo);">⚡ SPÉCIAL</span>`:""}
+      </div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${((S.qIndex+1)/TOTAL)*100}%;"></div></div>
+    <div style="flex:1;padding:18px 15px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-family:'Syne',sans-serif;color:var(--muted);font-size:12px;font-weight:700;">Q${S.qIndex+1}<span style="color:var(--border);"> /${TOTAL}</span></div>
+        <div style="position:relative;width:76px;height:76px;">
+          <svg width="76" height="76" style="transform:rotate(-90deg);">
+            <circle cx="38" cy="38" r="${r}" fill="none" stroke="var(--border)" stroke-width="5"/>
+            <circle id="tr" cx="38" cy="38" r="${r}" fill="none" stroke="${tc}" stroke-width="5"
+              stroke-dasharray="${ci}" stroke-dashoffset="${ci*(1-pct)}" stroke-linecap="round"
+              style="transition:stroke-dashoffset .9s linear,stroke .3s;"/>
+          </svg>
+          <div id="tn" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:${tc};">${S.timerVal}</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);text-align:right;">${answered}/${S.players.length}<br><span style="font-size:10px;">répondu</span></div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px 16px;text-align:center;animation:fadeUp .4s both;">
+        <p style="font-size:clamp(15px,4vw,19px);font-weight:700;line-height:1.5;">${q.q}</p>
+      </div>
+      <div id="opts" style="animation:fadeUp .4s .08s both;">${opts}</div>
+      ${S.myAnswer!==null?`<div style="text-align:center;padding:13px;border-radius:13px;background:var(--correct)10;border:1px solid var(--correct)30;color:var(--correct);font-family:'Syne',sans-serif;font-weight:800;font-size:13px;animation:pop .3s both;">✓ Réponse enregistrée !</div>`:""}
+    </div>
+  </div>`;}
+
+function rScore(){
+const sorted=[…S.players].map((pl,i)=>({…pl,oi:i})).sort((a,b)=>b.score-a.score);
+const MED=[“🥇”,“🥈”,“🥉”]; const isLast=S.qIndex+1>=TOTAL;
+const rows=sorted.map((pl,rank)=>` <div style="display:flex;align-items:center;gap:13px;background:${rank===0?"#ffd16608":"var(--surface)"};border:1.5px solid ${rank===0?"#ffd16650":"var(--border)"};border-radius:16px;padding:14px 17px;animation:slideIn .3s ${rank*.07}s both;box-shadow:${rank===0?"0 0 18px #ffd16618":"none"};"> <span style="font-size:20px;width:26px;text-align:center;">${MED[rank]||rank+1+"."}</span> <span style="font-size:20px;">${EMO[pl.oi%EMO.length]}</span> <div style="flex:1;"> <div style="font-weight:700;font-size:15px;">${pl.name}</div> <div style="font-size:12px;margin-top:2px;color:${pl.lastGained>0?"var(--correct)":"var(--muted)"};"> ${pl.lastGained>0?"+"+pl.lastGained.toLocaleString()+" pts":"— aucun point"} </div> </div> <div style="font-family:'Syne',sans-serif;font-size:19px;font-weight:800;color:${rank===0?"var(--gold)":p(pl.oi).m};">${pl.score.toLocaleString()}</div> </div>`).join(””);
+return`${noise}<div class="screen" style="justify-content:center;"> <div style="width:100%;max-width:400px;display:flex;flex-direction:column;gap:12px;"> <div style="text-align:center;margin-bottom:6px;animation:fadeUp .4s both;"> <div style="font-size:10px;letter-spacing:4px;color:var(--muted);text-transform:uppercase;margin-bottom:5px;font-family:'Syne',sans-serif;">Après ${S.qIndex+1} question${S.qIndex>0?"s":""}</div> <h2 style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;">Classement</h2> </div> <div style="display:flex;flex-direction:column;gap:9px;">${rows}</div> ${S.isHost?`<button id="bnext" class="btn btn-primary w100" style="font-size:16px;padding:17px;margin-top:4px;">${isLast?“🏆 Voir le podium”:`Question ${S.qIndex+2} →`}</button>`: `<div style="text-align:center;color:var(--muted);font-size:14px;padding:14px;animation:pulse 2s infinite;">En attente du host…</div>`}
+</div>
+
+  </div>`;}
+
+function rPodium(){
+const sorted=[…S.players].map((pl,i)=>({…pl,oi:i})).sort((a,b)=>b.score-a.score);
+const MED=[“🥇”,“🥈”,“🥉”],H=[130,180,100];
+const order=sorted.length>=3?[sorted[1],sorted[0],sorted[2]]:sorted;
+const cols=order.map((pl,vi)=>{
+const tr=sorted.findIndex(s=>s.name===pl.name),isW=tr===0,h=sorted.length>=3?H[vi]:vi===0?180:130;
+return`<div style="display:flex;flex-direction:column;align-items:center;flex:1;animation:fadeUp .5s ${.1+vi*.15}s both;"> <span style="font-size:24px;margin-bottom:3px;${isW?"animation:float 2s ease-in-out infinite;":""}">${EMO[pl.oi%EMO.length]}</span> <div style="font-family:'Syne',sans-serif;font-size:11px;font-weight:800;margin-bottom:2px;text-align:center;">${pl.name}</div> <div style="font-size:10px;color:${isW?"var(--gold)":p(pl.oi).m};margin-bottom:5px;">${pl.score.toLocaleString()}</div> <div style="width:100%;height:${h}px;border-radius:12px 12px 0 0;background:${isW?"linear-gradient(180deg,#ffd16640,#ffd16610)":p(pl.oi).bg};border:2px solid ${isW?"#ffd16655":p(pl.oi).b};display:flex;align-items:flex-start;justify-content:center;padding-top:12px;font-size:26px;box-shadow:${isW?"0 0 28px #ffd16628":"none"};">${MED[tr]||""}</div> </div>`;}).join(””);
+const allRows=sorted.map((pl,i)=>` <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:${i<sorted.length-1?"1px solid var(--border)":"none"};"> <span style="font-size:15px;width:26px;">${MED[i]||i+1+"."}</span> <span style="font-size:17px;">${EMO[pl.oi%EMO.length]}</span> <span style="flex:1;font-weight:700;font-size:14px;">${pl.name}</span> <span style="font-family:'Syne',sans-serif;font-weight:800;color:${p(pl.oi).m};font-size:16px;">${pl.score.toLocaleString()}</span> </div>`).join(””);
+const conf=Array.from({length:20},(_,i)=>{const c=[”#ff4d6d”,”#ff8500”,”#ffd166”,”#00f5d4”,”#00b4d8”][i%5];return`<div style="position:fixed;left:${Math.random()*100}%;top:-10px;width:${6+Math.random()*7}px;height:${6+Math.random()*7}px;border-radius:${Math.random()>.5?"50%":"3px"};background:${c};animation:fall ${2+Math.random()*2}s linear ${Math.random()*2}s infinite;opacity:.8;pointer-events:none;z-index:9998;"></div>`;}).join(””);
+return`${conf}${noise}<div class="screen" style="justify-content:flex-start;gap:0;">
+<div style="width:100%;max-width:400px;display:flex;flex-direction:column;gap:0;">
+<div style="text-align:center;margin-bottom:22px;animation:pop .6s both;">
+<div style="font-size:48px;">🏆</div>
+<h1 style="font-family:'Syne',sans-serif;font-size:34px;font-weight:800;color:var(--gold);text-shadow:0 0 35px #ffd16655;">PODIUM</h1>
+</div>
+<div style="display:flex;align-items:flex-end;justify-content:center;gap:8px;margin-bottom:22px;">${cols}</div>
+<div class="card" style="margin-bottom:16px;animation:fadeUp .5s .4s both;">
+<div class="label">Résultats complets</div>${allRows}
+</div>
+<button id="brestart" class="btn btn-primary w100" style="font-size:16px;padding:17px;animation:fadeUp .5s .5s both;">🔄 Rejouer</button>
+</div>
+
+  </div>`;}
+
+/* ══ EVENTS ═══════════════════════════════════════════════════════ */
+function bind(){
+el(“bcreate”)?.addEventListener(“click”,async()=>{
+const name=el(“hname”)?.value?.trim();
+if(!name){el(“hname”).style.borderColor=“var(–wrong)”;return;}
+const code=randCode();
+S.roomCode=code;S.isHost=true;S.playerId=“p0”;S.playerIdx=0;S.playerName=name;
+const qs=pickQ();
+await set(rRef(),{host:“p0”,status:“waiting”,qIndex:-1,soloIdx:-1,answers:{},questions:qs,players:{p0:{name,score:0,lastGained:0,idx:0}}});
+goWait();
+});
+el(“bjoin”)?.addEventListener(“click”,()=>{S.screen=“join”;render();});
+el(“bjdo”)?.addEventListener(“click”,async()=>{
+const name=el(“jname”)?.value?.trim(),code=el(“jcode”)?.value?.trim().toUpperCase();
+if(!name||!code){el(“jerr”).textContent=“Remplis tous les champs.”;return;}
+try{
+const snap=await get(ref(db,`rooms/${code}`));
+if(!snap.exists()) throw new Error(“Salon introuvable”);
+const room=snap.val();
+if(room.status!==“waiting”) throw new Error(“Partie déjà commencée”);
+const nb=Object.keys(room.players||{}).length;
+if(nb>=6) throw new Error(“Salon plein”);
+const pid=“p”+nb;
+S.roomCode=code;S.playerId=pid;S.playerIdx=nb;S.playerName=name;S.isHost=false;
+await update(ref(db,`rooms/${code}/players/${pid}`),{name,score:0,lastGained:0,idx:nb});
+goWait();
+}catch(e){el(“jerr”).textContent=e.message;}
+});
+el(“bback”)?.addEventListener(“click”,()=>{S.screen=“lobby”;render();});
+el(“bstart”)?.addEventListener(“click”,async()=>{
+if(S.players.length<2) return;
+const si=Math.floor(Math.random()*S.players.length);
+await update(rRef(),{status:“alliance_check”,qIndex:0,soloIdx:si,answers:{}});
+});
+el(“bgo”)?.addEventListener(“click”,()=>{S.screen=“question”;render();startT();});
+document.querySelectorAll(”.opt-btn”).forEach(btn=>{
+btn.addEventListener(“click”,async()=>{
+if(S.myAnswer!==null) return;
+const i=parseInt(btn.dataset.i);
+S.myAnswer=i;
+const opt=S.shuffledOpts[i];
+const ok=opt.origIdx===S.questions[S.qIndex].answer;
+const base=ok?Math.round(800+200*(S.timerVal/TIMER)):0;
+const isAl=ALROUNDS.includes(S.qIndex);
+const pts=isAl&&base>0?(S.playerIdx===S.soloIdx?Math.round(base*3):Math.round(base*1.5)):base;
+stopT();
+btn.style.background=ok?”#06d6a018”:”#ff4d6d18”;
+btn.style.borderColor=ok?“var(–correct)”:“var(–wrong)”;
+// Montrer la bonne réponse
+document.querySelectorAll(”.opt-btn”).forEach((b,bi)=>{
+if(S.shuffledOpts[bi]?.origIdx===S.questions[S.qIndex].answer) b.style.borderColor=“var(–correct)”;
+});
+await update(rRef(`answers/${S.playerId}`),{shuffIdx:i,points:pts,correct:ok});
+const optsDiv=el(“opts”);
+if(optsDiv) optsDiv.insertAdjacentHTML(“afterend”,`<div style="text-align:center;padding:13px;border-radius:13px;background:var(--correct)10;border:1px solid var(--correct)30;color:var(--correct);font-family:'Syne',sans-serif;font-weight:800;font-size:13px;animation:pop .3s both;">✓ Réponse enregistrée !</div>`);
+});
+});
+el(“bnext”)?.addEventListener(“click”,async()=>{
+const next=S.qIndex+1;
+if(next>=TOTAL){await update(rRef(),{status:“podium”});}
+else{const al=ALROUNDS.includes(next),ns=al?Math.floor(Math.random()*S.players.length):-1;await update(rRef(),{status:al?“alliance_check”:“question”,qIndex:next,soloIdx:ns,answers:{}});}
+});
+el(“brestart”)?.addEventListener(“click”,()=>{
+detach();
+S={screen:“lobby”,roomCode:null,playerId:null,playerName:null,playerIdx:null,isHost:false,players:[],questions:[],qIndex:0,soloIdx:null,myAnswer:null,shuffledOpts:[],lay:“grid2x2”,timerVal:TIMER,timerInterval:null,unsubs:[],answers:{}};
+render();
+});
+}
+
+/* ══ TIMER ════════════════════════════════════════════════════════ */
+function stopT(){if(S.timerInterval){clearInterval(S.timerInterval);S.timerInterval=null;}}
+function startT(){
+stopT();S.timerVal=TIMER;
+S.timerInterval=setInterval(async()=>{
+S.timerVal–;
+const r=32,ci=2*Math.PI*r,pct=S.timerVal/TIMER,tc=pct>.5?”#06d6a0”:pct>.25?”#ffd166”:”#ff4d6d”;
+const ring=el(“tr”),num=el(“tn”);
+if(ring){ring.style.stroke=tc;ring.setAttribute(“stroke-dashoffset”,ci*(1-pct));}
+if(num){num.textContent=S.timerVal;num.style.color=tc;}
+if(S.timerVal<=0){stopT();if(S.myAnswer===null){S.myAnswer=-1;await update(rRef(`answers/${S.playerId}`),{shuffIdx:-1,points:0,correct:false});}}
+},1000);
+}
+
+/* ══ FIREBASE LISTENER ════════════════════════════════════════════ */
+function detach(){S.unsubs.forEach(u=>u());S.unsubs=[];stopT();}
+function goWait(){
+S.screen=“waiting”;render();
+const unsub=onValue(rRef(),snap=>{
+if(!snap.exists()) return;
+const room=snap.val();
+const players=Object.values(room.players||{}).sort((a,b)=>a.idx-b.idx);
+S.players=players;S.questions=room.questions||[];
+S.qIndex=room.qIndex>=0?room.qIndex:0;
+S.soloIdx=room.soloIdx>=0?room.soloIdx:null;
+S.answers=room.answers||{};
+const st=room.status;
+if(st===“question”){
+const allAns=Object.keys(S.answers).length>=players.length;
+if(allAns&&S.isHost){
+stopT();
+const upd={};
+players.forEach((pl,i)=>{const ans=S.answers[“p”+i];const g=ans?.points||0;upd[`rooms/${S.roomCode}/players/p${i}/score`]=(pl.score||0)+g;upd[`rooms/${S.roomCode}/players/p${i}/lastGained`]=g;});
+update(ref(db),upd).then(()=>update(rRef(),{status:“scoreboard”}));
+return;
+}
+}
+if(st===“waiting”&&S.screen===“waiting”) render();
+else if(st===“alliance_check”&&S.screen!==“alliance”){stopT();S.myAnswer=null;prepQ();S.screen=“alliance”;render();}
+else if(st===“question”&&S.screen!==“question”){stopT();S.myAnswer=null;prepQ();S.screen=“question”;render();startT();}
+else if(st===“scoreboard”&&S.screen!==“scoreboard”){stopT();S.players=players;S.screen=“scoreboard”;render();}
+else if(st===“podium”&&S.screen!==“podium”){stopT();S.players=players;S.screen=“podium”;render();}
+});
+S.unsubs.push(unsub);
+}
+function prepQ(){
+const q=S.questions[S.qIndex];if(!q) return;
+S.shuffledOpts=shuffle(q.options.map((text,origIdx)=>({text,origIdx})));
+S.lay=layout(S.qIndex*7+Math.floor(Math.random()*7));
+S.myAnswer=null;
+}
+
+render();
+</script>
+
+</body>
+</html>
